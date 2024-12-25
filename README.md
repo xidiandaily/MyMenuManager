@@ -84,6 +84,9 @@ my_menu->"示例"->文件菜单示例_使用NotePad打开文件
             
 ```
 
+![my_menu_running](https://github.com/user-attachments/assets/a23bef96-f384-4cc1-b32b-17c8d05caa1a)
+
+
 
 ## 项目结构
 
