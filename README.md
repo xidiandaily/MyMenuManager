@@ -116,6 +116,8 @@ MyMenuManager/
 5. 点击“从右键菜单删除”按钮将 ``my_menu``从菜单删除
 5. 卸载后，将看不到 ``my_menu``
 
+![bandicam](https://github.com/user-attachments/assets/b896ec8d-0a6a-4ea3-9f74-1733e0316f12)
+
 
 ## 开发说明
 
