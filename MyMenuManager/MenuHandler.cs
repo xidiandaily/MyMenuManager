@@ -33,13 +33,16 @@ namespace MyMenuManager
         private readonly string CONFIG_FILE;
         private Dictionary<uint, MenuConfig> _cmdMap; // 添加命令ID到MenuItem的映射
         private static readonly object _logLock = new object();
+        private List<string> _defaultPaths;
 
         public MenuHandler()
         {
             string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             string dllDirectory = Path.GetDirectoryName(dllPath);
             CONFIG_FILE = Path.Combine(dllDirectory, "config.yaml");
-            _cmdMap = new Dictionary<uint, MenuConfig>(); // 初始化映射字典
+            _cmdMap = new Dictionary<uint, MenuConfig>();
+            _defaultPaths = new List<string>();
+            _defaultPaths.Add(dllDirectory);
             LoadConfig();
         }
 
@@ -66,6 +69,100 @@ namespace MyMenuManager
                 LogDebug($"LoadConfig 异常: {ex.Message}");
                 _menuConfigs = new List<MenuConfig>();
             }
+        }
+
+        private List<MenuConfig> LoadMenuConfigFromYaml(string yamlPath)
+        {
+            try
+            {
+                if (!File.Exists(yamlPath))
+                {
+                    LogDebug($"源配置文件不存在: {yamlPath}");
+                    return new List<MenuConfig>();
+                }
+
+                string yamlDirectory = Path.GetDirectoryName(yamlPath);
+                if (!_defaultPaths.Contains(yamlDirectory))
+                {
+                    _defaultPaths.Add(yamlDirectory);
+                    LogDebug($"添加源配置文件目录到默认路径: {yamlDirectory}");
+                }
+
+                string yamlContent = File.ReadAllText(yamlPath);
+                var deserializer = new DeserializerBuilder().Build();
+                var configs = deserializer.Deserialize<List<MenuConfig>>(yamlContent);
+
+                // 递归处理所有配置项的 source
+                ProcessSourceConfigs(configs, new HashSet<string> { yamlPath });
+
+                return configs;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"加载源配置文件失败 {yamlPath}: {ex.Message}");
+                return new List<MenuConfig>();
+            }
+        }
+
+        private void ProcessSourceConfigs(List<MenuConfig> configs, HashSet<string> loadedPaths)
+        {
+            if (configs == null) return;
+
+            for (int i = 0; i < configs.Count; i++)
+            {
+                var config = configs[i];
+                
+                // 处理 source 字段
+                if (!string.IsNullOrEmpty(config.Source))
+                {
+                    string sourcePath = GetAbsolutePath(config.Source);
+                    if (!loadedPaths.Contains(sourcePath))
+                    {
+                        loadedPaths.Add(sourcePath);
+                        var sourceConfigs = LoadMenuConfigFromYaml(sourcePath);
+                        // 将加载的配置合并到当前位置
+                        configs.InsertRange(i + 1, sourceConfigs);
+                        i += sourceConfigs.Count; // 调整索引以跳过新插入的项
+                    }
+                }
+
+                // 递归处理子菜单
+                if (config.Submenu != null)
+                {
+                    ProcessSourceConfigs(config.Submenu, loadedPaths);
+                }
+            }
+        }
+
+        private string GetAbsolutePath(string path)
+        {
+            if (Path.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            // 检查 PATH 中是否存在该命令
+            string commandName = Path.GetFileName(path);
+            string[] paths = Environment.GetEnvironmentVariable("PATH").Split(';');
+
+            foreach (var cur_path in paths)
+            {
+                string fullPath = Path.Combine(cur_path, commandName);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+
+            // 在所有默认路径中查找文件
+            foreach (string basePath in _defaultPaths)
+            {
+                string fullPath = Path.Combine(basePath, path);
+                if (File.Exists(fullPath))
+                    return fullPath;
+            }
+
+            return path;
         }
 
         private StringBuilder GetFolderPath(IntPtr pidlFolder)
@@ -189,7 +286,11 @@ namespace MyMenuManager
                             is_add_item = true;
                         }
                     }
-                    else if (CheckTarget(menuItem.Target,_type) )
+                    else if (menuItem.Source != null)
+                    {
+                        LogDebug($"加载Source:{menuItem.Source}");
+                    }
+                    else if (menuItem.Target != null && CheckTarget(menuItem.Target,_type))
                     {
                         if(IsValidCommand(menuItem.Cmd))
                         {
@@ -333,43 +434,13 @@ namespace MyMenuManager
         {
             try
             {
-                string default_path = GetDefaultCommand(cmd);
-
-                // 检查文件是否存在
-                if (default_path == cmd && !File.Exists(cmd))
+                string default_path = GetAbsolutePath(cmd);
+                if (File.Exists(default_path))
                 {
-                    // 检查 PATH 中是否存在该命令
-                    string commandName = Path.GetFileName(cmd);
-                    string[] paths = Environment.GetEnvironmentVariable("PATH").Split(';');
-                    bool foundInPath = false;
-
-                    foreach (var path in paths)
-                    {
-                        string fullPath = Path.Combine(path, commandName);
-                        if (File.Exists(fullPath))
-                        {
-                            foundInPath = true;
-                            break;
-                        }
-                    }
-
-                    if (!foundInPath)
-                    {
-                        LogDebug($"命令文件不存在: {cmd}");
-                        return false;
-                    }
+                    return true;
                 }
-
-                // 检查文件扩展名
-                string ext = Path.GetExtension(cmd).ToLower();
-                string[] allowedExts = new[] { ".exe", ".bat", ".cmd" };
-                if (!Array.Exists(allowedExts, x => x == ext))
-                {
-                    LogDebug($"不允许的文件类型: {ext}");
-                    return false;
-                }
-
-                return true;
+                LogDebug($"命令文件不存在: {cmd} default_path:{default_path}");
+                return false;
             }
             catch (Exception ex)
             {
@@ -564,15 +635,7 @@ namespace MyMenuManager
             {
                 try
                 {
-                    string yamlContent = File.ReadAllText(CONFIG_FILE);
-                    var deserializer = new DeserializerBuilder().Build();
-                    var customConfigs = deserializer.Deserialize<List<MenuConfig>>(yamlContent);
-
-                    if (customConfigs != null && customConfigs.Count > 0)
-                    {
-                        LogDebug($"从YAML {CONFIG_FILE} 加载了 {customConfigs.Count} 个菜单配置");
-                    }
-                    return customConfigs;
+                    return LoadMenuConfigFromYaml(CONFIG_FILE);
                 }
                 catch (Exception ex)
                 {
@@ -584,8 +647,20 @@ namespace MyMenuManager
             {
                 LogDebug($"配置文件不存在: {CONFIG_FILE}");
 
+                string dllDirectory = Path.GetDirectoryName(CONFIG_FILE);
+                string importyaml_path = Path.Combine(dllDirectory, "importyaml_config.yaml");
+
                 string yamlString = "";
-                yamlString +="- Title: \"示例\"\r\n";
+
+                yamlString  ="- Title: \"导入配置示例\"\r\n";
+                yamlString +="  Submenu:  \r\n";
+                yamlString +="    - Title: \"综合示例_复制路径\"\r\n";
+                yamlString +="      Target: \"background,file,directory\"\r\n";
+                yamlString +="      Cmd: \"example\\\\copy_path_and_escape.bat\"\r\n";
+                File.WriteAllText(importyaml_path, yamlString);
+                LogDebug($"已创建新的被导入配置文件:{importyaml_path}");
+
+                yamlString  ="- Title: \"示例\"\r\n";
                 yamlString +="  Submenu:  \r\n";
                 yamlString +="    - Title: \"文件菜单示例_使用NotePad打开文件\"\r\n";
                 yamlString +="      Target: \"file\"\r\n";
@@ -596,11 +671,10 @@ namespace MyMenuManager
                 yamlString +="    - Title: \"文件空白处菜单示例_显示当前路径\"\r\n";
                 yamlString +="      Target: \"background\"\r\n";
                 yamlString +="      Cmd: \"example\\\\show_current_path.bat\"\r\n";
-                yamlString +="    - Title: \"综合示例_复制路径\"\r\n";
-                yamlString +="      Target: \"background,file,directory\"\r\n";
-                yamlString +="      Cmd: \"example\\\\copy_path_and_escape.bat\"\r\n";
+                yamlString +="- Title: \"ImportYaml\"\r\n";
+                yamlString +="  Source: \"importyaml_config.yaml\"\r\n";
                 File.WriteAllText(CONFIG_FILE, yamlString);
-                LogDebug("已创建新的配置文件");
+                LogDebug($"已创建新的配置文件:{CONFIG_FILE}");
 
                 return GetMenuConfigs();
             }
@@ -610,20 +684,7 @@ namespace MyMenuManager
         {
             try
             {
-                if (menuItem.Title == DEFAULT_MENU_SHOW_DIR)
-                {
-                    string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                    string dllDirectory = Path.GetDirectoryName(dllPath);
-                    selectedPath = dllDirectory;
-                }
-
-                string cmd = menuItem.Cmd;
-                string default_path = GetDefaultCommand(menuItem.Cmd);
-                if(default_path != menuItem.Cmd)
-                {
-                    cmd = default_path;
-                }
-
+                string cmd = GetAbsolutePath(menuItem.Cmd);
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = cmd,
