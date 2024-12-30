@@ -28,26 +28,30 @@
 ```
 
 title
-: 这个是显示在右键菜单上的名称
+> 这个是显示在右键菜单上的名称
+
 target
-: 这个说明这个菜单项是在那种类型对象上点击右键时显示，取值范围 ``file``、``directory``、``background``
-: - ``file`` 在文件上点击右键时会显示，其他类型对不会显示
-: - ``directory`` 在文件夹上点击右键会显示
-: - ``background`` 在文件夹背景处点击右键可以显示
-: - 可以采用 ',' 分割符进行复选，例如 "file,directory" 在文件和文件夹都会显示这个菜单项
+> 这个说明这个菜单项是在那种类型对象上点击右键时显示，取值范围 ``file``、``directory``、``background``
+> - ``file`` 在文件上点击右键时会显示，其他类型对不会显示
+> - ``directory`` 在文件夹上点击右键会显示
+> - ``background`` 在文件夹背景处点击右键可以显示
+> - 可以采用 ',' 分割符进行复选，例如 "file,directory" 在文件和文件夹都会显示这个菜单项
+
 cmd
-: 这个是选中菜单项后，会执行的命令，并且会将当前的文件对象完整路径传给这个命令,命令支持的对象是 ``.exe``、``.bat``、``.cmd``
-: 假如``cmd``配置的是 ``notepad.exe``， 那么就会使用 ``notepad.exe``将文件打开
-: 这里的 ``cmd``可以自己定义，可以是``notepad.exe``、``gvime.exe``、甚至是python脚本
+> 这个是选中菜单项后，会执行的命令，并且会将当前的文件对象完整路径传给这个命令,命令支持的对象是 ``.exe``、``.bat``、``.cmd``
+> 假如``cmd``配置的是 ``notepad.exe``， 那么就会使用 ``notepad.exe``将文件打开
+> 这里的 ``cmd``可以自己定义，可以是``notepad.exe``、``gvime.exe``、甚至是python脚本
+
 subcmd
-: 二级菜单，配置二级菜单的时候，本菜单项可以不配置``target``参数，以``subcmd``的配置为准
+> 二级菜单，配置二级菜单的时候，本菜单项可以不配置``target``参数，以``subcmd``的配置为准
+
 Source
-:1，修改配置，原来每一个``MenuConfig``仅支持``Title``,``Target``,``Cmd``,``Submen``，现在新增加一个可选的新字段 ``Source``
-:2, ``Source`` 字段对象是一个配置在另一个位置的 ``yaml``格式的 ``MenuConfig``， 当``LoadConfig`` 函数读到这个字段时，要自动加载这个``yaml``，并将其内容``merge``进来；
-:3，增加多一个 ``default_paths`` 的变量，存放一些默认的路径，目前放到这个 ``default_paths`` 中的路径有:
-:   3.1 ``dllPath``所在的的 ``dllDirectory``
-:   3.2 每一个``Source``字段对应配置 ``yaml`` 的 ``yamlDirectory``
-:4, ``default_paths`` 中的优先级，按照 ``dllPath``,``yamlDirectory`` 来，查找可执行命令时，优先查找``PATH``,再查找 ``default_paths``
+> 1. 修改配置，原来每一个``MenuConfig``仅支持``Title``,``Target``,``Cmd``,``Submen``，现在新增加一个可选的新字段 ``Source``
+> 2. ``Source`` 字段对象是一个配置在另一个位置的 ``yaml``格式的 ``MenuConfig``， 当``LoadConfig`` 函数读到这个字段时，要自动加载这个``yaml``，并将其内容``merge``进来；
+> 3. 增加多一个 ``default_paths`` 的变量，存放一些默认的路径，目前放到这个 ``default_paths`` 中的路径有:
+>    3.1. ``dllPath``所在的的 ``dllDirectory``
+>    3.2. 每一个``Source``字段对应配置 ``yaml`` 的 ``yamlDirectory``
+> 4. ``default_paths`` 中的优先级，按照 ``dllPath``,``yamlDirectory`` 来，查找可执行命令时，优先查找``PATH``,再查找 ``default_paths``
 
 ### 配置案例
 > 示例配置说明
