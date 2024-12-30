@@ -684,6 +684,13 @@ namespace MyMenuManager
         {
             try
             {
+                if (menuItem.Title == DEFAULT_MENU_SHOW_DIR)
+                {
+                    string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                    string dllDirectory = Path.GetDirectoryName(dllPath);
+                    selectedPath = dllDirectory;
+                }
+
                 string cmd = GetAbsolutePath(menuItem.Cmd);
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
