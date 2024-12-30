@@ -39,15 +39,22 @@ cmd
 : 这个是选中菜单项后，会执行的命令，并且会将当前的文件对象完整路径传给这个命令,命令支持的对象是 ``.exe``、``.bat``、``.cmd``
 : 假如``cmd``配置的是 ``notepad.exe``， 那么就会使用 ``notepad.exe``将文件打开
 : 这里的 ``cmd``可以自己定义，可以是``notepad.exe``、``gvime.exe``、甚至是python脚本
-
 subcmd
 : 二级菜单，配置二级菜单的时候，本菜单项可以不配置``target``参数，以``subcmd``的配置为准
+Source
+:1，修改配置，原来每一个``MenuConfig``仅支持``Title``,``Target``,``Cmd``,``Submen``，现在新增加一个可选的新字段 ``Source``
+:2, ``Source`` 字段对象是一个配置在另一个位置的 ``yaml``格式的 ``MenuConfig``， 当``LoadConfig`` 函数读到这个字段时，要自动加载这个``yaml``，并将其内容``merge``进来；
+:3，增加多一个 ``default_paths`` 的变量，存放一些默认的路径，目前放到这个 ``default_paths`` 中的路径有:
+:   3.1 ``dllPath``所在的的 ``dllDirectory``
+:   3.2 每一个``Source``字段对应配置 ``yaml`` 的 ``yamlDirectory``
+:4, ``default_paths`` 中的优先级，按照 ``dllPath``,``yamlDirectory`` 来，查找可执行命令时，优先查找``PATH``,再查找 ``default_paths``
 
 ### 配置案例
 > 示例配置说明
 示例配置是在将 ``my_menu``导入到右键菜单之后，首次呼出右键菜单时，会在``MyMenuManager.dll`` 所在路径下查找默认配置 ``config.yaml``,如果没有找到，就会生成如下面所示的示例 ``config.yaml``。
 
 ```yaml
+//config.yaml
 - Title: "示例"
   Submenu:  
     - Title: "文件菜单示例_使用NotePad打开文件"
@@ -59,6 +66,15 @@ subcmd
     - Title: "文件空白处菜单示例_显示当前路径"
       Target: "background"
       Cmd: "example\\show_current_path.bat"
+    - Title: "综合示例_复制路径"
+      Target: "background,file,directory"
+      Cmd: "example\\copy_path_and_escape.bat"
+- Title: "ImportYaml"
+  Source: "importyaml_config.yaml"
+
+//file
+- Title: "导入配置示例"
+  Submenu:  
     - Title: "综合示例_复制路径"
       Target: "background,file,directory"
       Cmd: "example\\copy_path_and_escape.bat"

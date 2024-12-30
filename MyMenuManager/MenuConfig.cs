@@ -7,6 +7,7 @@ namespace MyMenuManager.Models
         public string Title { get; set; }
         public string Target { get; set; }
         public string Cmd { get; set; }
+        public string Source { get; set; }
         public List<MenuConfig> Submenu { get; set; }
     }
 } 

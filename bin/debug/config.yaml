@@ -9,6 +9,5 @@
     - Title: "文件空白处菜单示例_显示当前路径"
       Target: "background"
       Cmd: "example\\show_current_path.bat"
-    - Title: "综合示例_复制路径"
-      Target: "background,file,directory"
-      Cmd: "example\\copy_path_and_escape.bat"
+- Title: "ImportYaml"
+  Source: "importyaml_config.yaml"
